@@ -112,5 +112,77 @@ namespace RepositoryLayer.Service
             return new JwtSecurityTokenHandler().WriteToken(token);
 
         }
+        public string ForgetPassword(string Email)
+        {
+            this.sqlConnection = new SqlConnection(this.configuration.GetConnectionString("BookStore"));
+            using (sqlConnection)
+                try
+                {
+                    SqlCommand command = new SqlCommand("ForgotPassword", this.sqlConnection);
+                    command.CommandType = CommandType.StoredProcedure;
+                    this.sqlConnection.Open();
+
+                    command.Parameters.AddWithValue("@EmailId", Email);
+                    SqlDataReader reader = command.ExecuteReader();
+                    if (reader.RecordsAffected != 0)
+                    {
+                        int userId = 0;
+                        while (reader.Read())
+                        {
+                            Email = Convert.ToString(reader["Email"]);
+                            userId = Convert.ToInt32(reader["UserId"]);
+
+                        }
+                        this.sqlConnection.Close();
+                        var token = GenerateSecurityToken(Email, userId);
+                        MSMQModel mSMQModel = new MSMQModel();
+                        mSMQModel.sendData2Queue(token);
+                        return token.ToString();
+                    }
+                    else
+                    {
+                        return null;
+                    }
+
+                }
+                catch (Exception)
+                {
+
+                    throw;
+                }
+
+
+        }
+        public bool ResetPassword(string EmailId, string Password)
+        {
+
+            this.sqlConnection = new SqlConnection(this.configuration.GetConnectionString("BookStore"));
+            using (sqlConnection)
+                try
+                {
+                    RegistrationModel usermodel = new RegistrationModel();
+                    SqlCommand command = new SqlCommand("spResetPassword", this.sqlConnection);
+                    command.CommandType = CommandType.StoredProcedure;
+
+                    command.Parameters.AddWithValue("@EmailId", EmailId);
+                    command.Parameters.AddWithValue("@Password", Password);
+                    this.sqlConnection.Open();
+                    var result = command.ExecuteNonQuery();
+                    this.sqlConnection.Close();
+                    if (result != 0)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                catch (Exception)
+                {
+
+                    throw;
+                }
+        }
     }
 }
